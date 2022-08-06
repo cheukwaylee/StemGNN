@@ -101,7 +101,7 @@ def validate(model, dataloader, device, normalize_method, statistic,
 
 
 def train(train_data, valid_data, args, result_file):
-    node_cnt = train_data.shape[1]
+    node_cnt = train_data.shape[1]  # 140
     model = Model(node_cnt, 2, args.window_size, args.multi_layer, horizon=args.horizon)
     model.to(args.device)
     if len(train_data) == 0:
@@ -109,7 +109,8 @@ def train(train_data, valid_data, args, result_file):
     if len(valid_data) == 0:
         raise Exception('Cannot organize enough validation data')
 
-    if args.norm_method == 'z_score':
+    # 归一化
+    if args.norm_method == 'z_score':  # 均值and方差
         train_mean = np.mean(train_data, axis=0)
         train_std = np.std(train_data, axis=0)
         normalize_statistic = {"mean": train_mean.tolist(), "std": train_std.tolist()}
@@ -149,21 +150,23 @@ def train(train_data, valid_data, args, result_file):
     best_validate_mae = np.inf
     validate_score_non_decrease_count = 0
     performance_metrics = {}
-    for epoch in range(args.epoch):
+    for epoch in range(args.epoch):  # 一个epoch里面分了若干个batch
         epoch_start_time = time.time()
         model.train()
         loss_total = 0
         cnt = 0
         for i, (inputs, target) in enumerate(train_loader):
+            # inputs.shape -------------- target.shape:
+            # torch.Size([32, 12, 140]) - torch.Size([32, 3, 140])
             inputs = inputs.to(args.device)
             target = target.to(args.device)
-            model.zero_grad()
+            model.zero_grad()  # 不同的batch 不进行梯度累积
             forecast, _ = model(inputs)
             loss = forecast_loss(forecast, target)
             cnt += 1
             loss.backward()
             my_optim.step()
-            loss_total += float(loss)
+            loss_total += float(loss)  # 一个epoch的总loss
         print('| end of epoch {:3d} | time: {:5.2f}s | train_total_loss {:5.4f}'.format(epoch, (
                 time.time() - epoch_start_time), loss_total / cnt))
         save_model(model, result_file, epoch)
